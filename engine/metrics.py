@@ -3,55 +3,54 @@ from .utils import dist_sq
 
 def horizontal_compactness(players):
     """
-    Calculates the team's width across the pitch. 
-    Rewards a 'Goldilocks' width that covers the center without exposing the wings.
-    """
-    outfielder_x_coords = [p.pos.x for p in players if not p.is_gk]
-    if not outfielder_x_coords:
-        return 0.0
-    
-    current_width = max(outfielder_x_coords) - min(outfielder_x_coords)
-    
-    LIMIT_TOTAL_FAILURE = 50.0
-    LIMIT_TOO_NARROW = 30.0
-    PERFECT_RANGE_START = 35.0
-    PERFECT_RANGE_END = 45.0
-
-    if current_width <= LIMIT_TOO_NARROW or current_width >= LIMIT_TOTAL_FAILURE:
-        return 0.0
-    if PERFECT_RANGE_START <= current_width <= PERFECT_RANGE_END:
-        return 1.0
-    
-    if current_width < PERFECT_RANGE_START:
-        return (current_width - LIMIT_TOO_NARROW) / (PERFECT_RANGE_START - LIMIT_TOO_NARROW)
-    
-    return (LIMIT_TOTAL_FAILURE - current_width) / (LIMIT_TOTAL_FAILURE - PERFECT_RANGE_END)
-
-def vertical_compactness(players):
-    """
-    Calculates the distance between the team's highest and lowest outfielders.
-    Higher scores reflect a tight 'block' that denies space between the lines.
+    Calculates the team's width across the pitch (how wide from sideline to sideline).
     """
     outfielder_y_coords = [p.pos.y for p in players if not p.is_gk]
     if not outfielder_y_coords:
         return 0.0
         
-    current_height = max(outfielder_y_coords) - min(outfielder_y_coords)
+    current_width = max(outfielder_y_coords) - min(outfielder_y_coords)
     
     LIMIT_DISCONNECTED = 40.0
     LIMIT_OVERLY_SQUEEZED = 20.0
     ELITE_RANGE_START = 25.0
     ELITE_RANGE_END = 30.0
 
-    if current_height <= LIMIT_OVERLY_SQUEEZED or current_height >= LIMIT_DISCONNECTED:
+    if current_width <= LIMIT_OVERLY_SQUEEZED or current_width >= LIMIT_DISCONNECTED:
         return 0.0
-    if ELITE_RANGE_START <= current_height <= ELITE_RANGE_END:
+    if ELITE_RANGE_START <= current_width <= ELITE_RANGE_END:
         return 1.0
     
-    if current_height < ELITE_RANGE_START:
-        return (current_height - LIMIT_OVERLY_SQUEEZED) / (ELITE_RANGE_START - LIMIT_OVERLY_SQUEEZED)
+    if current_width < ELITE_RANGE_START:
+        return (current_width - LIMIT_OVERLY_SQUEEZED) / (ELITE_RANGE_START - LIMIT_OVERLY_SQUEEZED)
     
-    return (LIMIT_DISCONNECTED - current_height) / (LIMIT_DISCONNECTED - ELITE_RANGE_END)
+    return (LIMIT_DISCONNECTED - current_width) / (LIMIT_DISCONNECTED - ELITE_RANGE_END)
+
+
+def vertical_compactness(players):
+    """
+    Calculates the distance between the team's highest and lowest outfielders(team depth).
+    """
+    outfielder_x_coords = [p.pos.x for p in players if not p.is_gk]
+    if not outfielder_x_coords:
+        return 0.0
+    
+    current_depth = max(outfielder_x_coords) - min(outfielder_x_coords)
+    
+    LIMIT_TOTAL_FAILURE = 55.0
+    LIMIT_TOO_NARROW = 30.0
+    PERFECT_RANGE_START = 35.0
+    PERFECT_RANGE_END = 45.0
+
+    if current_depth <= LIMIT_TOO_NARROW or current_depth >= LIMIT_TOTAL_FAILURE:
+        return 0.0
+    if PERFECT_RANGE_START <= current_depth <= PERFECT_RANGE_END:
+        return 1.0
+    
+    if current_depth < PERFECT_RANGE_START:
+        return (current_depth - LIMIT_TOO_NARROW) / (PERFECT_RANGE_START - LIMIT_TOO_NARROW)
+    
+    return (LIMIT_TOTAL_FAILURE - current_depth) / (LIMIT_TOTAL_FAILURE - PERFECT_RANGE_END)
 
 def press_access(players, ball, k_nearest=3):
     """
@@ -153,12 +152,12 @@ def ball_side_shift(players, ball, pitch_width=68.0):
     
     shift_distance_error = abs(block_median_y - tucked_target_y)
     
-    if shift_distance_error <= 4.0:
+    if shift_distance_error <= 3.0:
         return 1.0
-    if shift_distance_error >= 20.0:
+    if shift_distance_error >= 15.0:
         return 0.0
     
-    return (20.0 - shift_distance_error) / 16.0
+    return (15.0 - shift_distance_error) / 12.0
 
 def weighted_score(scenario: Scenario, players):
     """
@@ -167,16 +166,16 @@ def weighted_score(scenario: Scenario, players):
     """
     metric_results = {
         "width": horizontal_compactness(players),
-        "height": vertical_compactness(players),
+        "depth": vertical_compactness(players),
         "press": press_access(players, scenario.ball),
         "risk": line_height_risk(players, scenario.opp_players),
         "shift": ball_side_shift(players, scenario.ball, scenario.pitch.width),
     }
 
     if scenario.context.objective == "WIN_GAME":
-        weights = {"press": 0.30, "height": 0.20, "shift": 0.20, "width": 0.15, "risk": 0.15}
+        weights = {"press": 0.30, "depth": 0.20, "shift": 0.20, "width": 0.15, "risk": 0.15}
     else: # PROTECT_LEAD
-        weights = {"risk": 0.30, "width": 0.25, "height": 0.25, "shift": 0.15, "press": 0.05}
+        weights = {"risk": 0.30, "width": 0.25, "depth": 0.25, "shift": 0.15, "press": 0.05}
 
     final_weighted_sum = sum(metric_results[k] * weights[k] for k in weights)
     return round(final_weighted_sum * 100.0, 1)
