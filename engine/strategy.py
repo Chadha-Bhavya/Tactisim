@@ -144,6 +144,11 @@ def _generate_candidates(players, scenario):
     ]
 
 
+def beam_search(scenario: Scenario):
+    """Default beam search using deep analysis parameters. Width=8, Depth=3."""
+    return _beam_search(scenario, beam_width=8, depth=3)
+
+
 def beam_search_realtime(scenario: Scenario):
     """Fast beam search for real-time recommendations. Width=4, Depth=2."""
     return _beam_search(scenario, beam_width=4, depth=2)
